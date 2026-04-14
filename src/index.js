@@ -11,6 +11,7 @@ import {
 } from 'discord.js'
 import mqtt from 'mqtt'
 import dotenv from 'dotenv'
+import express from 'express'
 
 dotenv.config()
 
@@ -160,3 +161,11 @@ client.on(Events.MessageCreate, async message => {
 // ================= START =================
 console.log('🚀 Starting bot...')
 client.login(token)
+
+app.get('/', (req, res) => {
+  res.send('Bot is running')
+})
+
+app.listen(process.env.PORT || 3000, () => {
+  console.log(`Web server running on ${PORT}`)
+})
