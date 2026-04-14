@@ -1,14 +1,7 @@
 import { readdirSync } from 'fs'
 import { pathToFileURL, fileURLToPath } from 'url'
 import { dirname, join } from 'path'
-import {
-    Client,
-    Collection,
-    GatewayIntentBits,
-    REST,
-    Routes,
-    Events
-} from 'discord.js'
+import { Client, Collection, GatewayIntentBits, REST, Routes, Events, EmbedBuilder } from 'discord.js'
 import mqtt from 'mqtt'
 import dotenv from 'dotenv'
 import express from 'express'
@@ -42,16 +35,16 @@ const commandsPath = join(__dirname, 'commands')
 const commandFiles = readdirSync(commandsPath).filter(f => f.endsWith('.js'))
 
 for (const file of commandFiles) {
-  const filePath = join(commandsPath, file)
-  const moduleUrl = pathToFileURL(filePath).href
+    const filePath = join(commandsPath, file)
+    const moduleUrl = pathToFileURL(filePath).href
 
-  const command = await import(moduleUrl)
+    const command = await import(moduleUrl)
 
-  if (command.data && command.execute) {
-    client.commands.set(command.data.name, command)
-  } else {
-    console.warn(`Invalid command: ${file}`)
-  }
+    if (command.data && command.execute) {
+        client.commands.set(command.data.name, command)
+    } else {
+        console.warn(`Invalid command: ${file}`)
+    }
 }
 
 // ================= REGISTER COMMAND =================
@@ -71,6 +64,8 @@ async function registerCommands() {
 }
 
 // ================= MQTT =================
+import { getUserProfilePicture } from './getLineUser.js'
+
 function initMqtt() {
     const mqttClient = mqtt.connect(process.env.MQTT_URL, {
         username: process.env.MQTT_USERNAME,
@@ -87,28 +82,44 @@ function initMqtt() {
         try {
             const data = JSON.parse(message.toString())
             console.log('Received MQTT message:', data)
-            const { action, deviceName, location } = data
 
             const channel = await client.channels.fetch(process.env.DISCORD_CHANNEL_ID)
             if (!channel) return
 
-
             if (data?.isLineUser) {
-                // 來自 LINE 使用者
+                const embed = new EmbedBuilder()
+                    .setTitle(getEmoji(data.action) + (data.action || '未知'))
+                    .setColor(0x2ecc71)
+                    .setAuthor({
+                        name: data.displayName,
+                        iconURL: await getUserProfilePicture(data.userId) || undefined,
+                        url: 'https://discord-bot-1or5.onrender.com',
+                    })
+                    .addFields({ name: '', value: data.userId, inline: true })
+                    .setTimestamp(); // 不傳入參數預設就是當前時間 (new Date())
 
-                await channel.send(`${data.displayName} (${data.userId}):\n ${data.action}`)
+                await channel.send({ embeds: [embed] });
 
             } else {
-                // 來自 Shortcut
                 const location = (data.location || "")
                     .replace(/\n/g, ' ')
                     .replace(/\b\d{3,6}\b/g, '')
                     .replace(/\s+/g, ' ')
                     .trim();
 
-                await channel.send(`Shortcut: ${data.deviceName} at (${location}):\n ${data.action}`)
-            }
+                const embed = new EmbedBuilder()
+                    .setTitle(getEmoji(data.action) + (data.action || '未知'))
+                    .setColor(0xea79c5)
+                    .setAuthor({
+                        name: data.deviceName,
+                        iconURL: 'https://help.apple.com/assets/6781C3C67B7D74FBA40A8869/6781C3D2FBC8FC20260A5112/zh_TW/e5b2bdfad57b2e0b806c0f65d8d1db72.png',
+                        url: 'https://discord-bot-1or5.onrender.com',
+                    })
+                    .addFields({ name: '', value: location, inline: true })
+                    .setTimestamp();
 
+                await channel.send({ embeds: [embed] });
+            }
         } catch (err) {
             console.error('MQTT message error:', err)
         }
@@ -117,6 +128,12 @@ function initMqtt() {
     mqttClient.on('error', err => {
         console.error('MQTT error:', err)
     })
+}
+const getEmoji = (action) => {
+    if (action.includes('開')) return '🟩 '
+    if (action.includes('關')) return '🟥 '
+    if (action.includes('暫停')) return '⏸️ '
+    return '⚙️'
 }
 
 // ================= DISCORD EVENTS =================
@@ -162,10 +179,11 @@ client.on(Events.MessageCreate, async message => {
 console.log('🚀 Starting bot...')
 client.login(token)
 
+const app = express()
 app.get('/', (req, res) => {
-  res.send('Bot is running')
+    res.send('Bot is running')
 })
-
-app.listen(process.env.PORT || 3000, () => {
-  console.log(`Web server running on ${PORT}`)
+const PORT = process.env.PORT || 3000
+app.listen(PORT, () => {
+    console.log(`Server running on ${PORT}`)
 })
