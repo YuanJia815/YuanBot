@@ -12,8 +12,10 @@ export const getUserProfilePicture = async(userId) => {
         }
       }
     );
+    console.log('LINE profile pic URL:', res.data.pictureUrl);
     return res.data.pictureUrl || null;
-  } catch {
+  } catch (error) {
+    console.error('Error fetching LINE profile picture:', error);
     return null;
   }
 }
