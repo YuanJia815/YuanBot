@@ -30,23 +30,6 @@ const client = new Client({
 
 client.commands = new Collection()
 
-// ================= COMMAND LOADER =================
-const commandsPath = join(__dirname, 'commands')
-const commandFiles = readdirSync(commandsPath).filter(f => f.endsWith('.js'))
-
-for (const file of commandFiles) {
-    const filePath = join(commandsPath, file)
-    const moduleUrl = pathToFileURL(filePath).href
-
-    const command = await import(moduleUrl)
-
-    if (command.data && command.execute) {
-        client.commands.set(command.data.name, command)
-    } else {
-        console.warn(`Invalid command: ${file}`)
-    }
-}
-
 // ================= REGISTER COMMAND =================
 const rest = new REST({ version: '10' }).setToken(token)
 
@@ -194,6 +177,29 @@ client.on('shardError', error => {
 })
 // ================= START =================
 console.log('🚀 Starting bot...')
+console.log('Step 1: env loaded')
+console.log('TOKEN:', process.env.BOT_TOKEN)
+
+// ===== COMMAND LOADER =====
+const commandsPath = join(__dirname, 'commands')
+const commandFiles = readdirSync(commandsPath).filter(f => f.endsWith('.js'))
+
+for (const file of commandFiles) {
+    console.log('Loading command:', file)
+
+    const filePath = join(commandsPath, file)
+    const moduleUrl = pathToFileURL(filePath).href
+
+    const command = await import(moduleUrl)
+    if (command.data && command.execute) {
+        client.commands.set(command.data.name, command)
+    } else {
+        console.warn(`Invalid command: ${file}`)
+    }
+}
+
+console.log('Step 3: commands loaded')
+console.log('Step 4: login...')
 client.login(token)
 
 const app = express()
