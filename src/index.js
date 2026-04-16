@@ -1,7 +1,7 @@
 import { readdirSync } from 'fs'
 import { pathToFileURL, fileURLToPath } from 'url'
 import { dirname, join } from 'path'
-import { Client, Collection, GatewayIntentBits, REST, Routes, Events, EmbedBuilder } from 'discord.js'
+import { Client, Collection, GatewayIntentBits, Partials, REST, Routes, Events, EmbedBuilder } from 'discord.js'
 import mqtt from 'mqtt'
 import dotenv from 'dotenv'
 import express from 'express'
@@ -20,13 +20,10 @@ if (!token) {
     process.exit(1)
 }
 
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-    ]
-})
+const client = new Client({ 
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildMessageReactions],
+    partials: [Partials.Message, Partials.Channel, Partials.Reaction],
+});
 
 client.commands = new Collection()
 
@@ -168,17 +165,23 @@ client.on('reconnecting', () => {
   console.log('🔄 Discord reconnecting...')
 })
 
-client.on('error', (err) => {
-  console.error('Discord error:', err)
+client.on('debug', (msg) => {
+  console.log('[DEBUG]', msg)
 })
 
-client.on('shardError', error => {
-  console.error('Shard error:', error)
+client.on('warn', (msg) => {
+  console.log('[WARN]', msg)
+})
+
+client.on('error', (err) => {
+  console.error('[ERROR]', err)
+})
+
+client.on('shardError', (err) => {
+  console.error('[SHARD ERROR]', err)
 })
 // ================= START =================
 console.log('🚀 Starting bot...')
-console.log('Step 1: env loaded')
-console.log('TOKEN:', process.env.BOT_TOKEN)
 
 // ===== COMMAND LOADER =====
 const commandsPath = join(__dirname, 'commands')
@@ -198,8 +201,8 @@ for (const file of commandFiles) {
     }
 }
 
-console.log('Step 3: commands loaded')
-console.log('Step 4: login...')
+console.log('Step 2: commands loaded')
+console.log('Step 3: login...')
 client.login(token)
 
 const app = express()
