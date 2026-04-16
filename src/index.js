@@ -87,6 +87,7 @@ function initMqtt() {
             if (!channel) return
 
             if (data?.isLineUser) {
+                console.log('Processing LINE user data for:', data.displayName)
                 const embed = new EmbedBuilder()
                     .setTitle(getEmoji(data.action) + (data.action || '未知'))
                     .setColor(0x2ecc71)
@@ -175,6 +176,22 @@ client.on(Events.MessageCreate, async message => {
     }
 })
 
+client.on('disconnect', () => {
+  console.log('❌ Discord disconnected')
+  client.login(process.env.BOT_TOKEN)
+})
+
+client.on('reconnecting', () => {
+  console.log('🔄 Discord reconnecting...')
+})
+
+client.on('error', (err) => {
+  console.error('Discord error:', err)
+})
+
+client.on('shardError', error => {
+  console.error('Shard error:', error)
+})
 // ================= START =================
 console.log('🚀 Starting bot...')
 client.login(token)
